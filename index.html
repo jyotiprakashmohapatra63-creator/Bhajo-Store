@@ -780,63 +780,8 @@
             hideKeyboard();
         }
 
-        function getSafePdfFileName() {
-            const requestedName = document.getElementById('pdfNameInput').value.trim() || "BhajoStore_Bill";
-            const cleanedName = requestedName
-                .replace(/\.pdf$/i, "")
-                .replace(/[\\/:*?"<>|]/g, "_")
-                .trim();
-            return (cleanedName || "BhajoStore_Bill") + ".pdf";
-        }
-
-        async function savePdfOnDevice(doc, fileName) {
-            const isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-            // Keep the existing desktop behaviour exactly as it was.
-            if (!isMobile) {
-                doc.save(fileName);
-                return true;
-            }
-
-            const pdfBlob = doc.output("blob");
-
-            // On modern phones, the native share sheet reliably offers Save to Files/
-            // Downloads, even in browsers and WebViews where doc.save() is blocked.
-            if (window.File && navigator.share && navigator.canShare) {
-                const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
-                if (navigator.canShare({ files: [pdfFile] })) {
-                    try {
-                        await navigator.share({
-                            files: [pdfFile],
-                            title: fileName,
-                            text: "Bhajo Store bill PDF"
-                        });
-                        return true;
-                    } catch (error) {
-                        // If the user closes the share sheet, do not start a second download.
-                        if (error && error.name === "AbortError") return false;
-                        console.warn("Native PDF save unavailable; using download fallback.", error);
-                    }
-                }
-            }
-
-            // Fallback for older mobile browsers: trigger a normal Blob download.
-            const blobUrl = URL.createObjectURL(pdfBlob);
-            const downloadLink = document.createElement("a");
-            downloadLink.href = blobUrl;
-            downloadLink.download = fileName;
-            downloadLink.style.display = "none";
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            setTimeout(() => {
-                URL.revokeObjectURL(blobUrl);
-                downloadLink.remove();
-            }, 1000);
-            return true;
-        }
-
         async function generateAndSavePDF() {
-            const fileName = getSafePdfFileName();
+            const fileName = (document.getElementById('pdfNameInput').value.trim() || "BhajoStore_Bill") + ".pdf";
             closePdfNamePopup();
 
             try {
@@ -920,14 +865,46 @@
                 doc.text("Grand Total:", 20, startY + 8);
                 doc.text(total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 185, startY + 8, { align: "right" });
 
-                const wasSaved = await savePdfOnDevice(doc, fileName);
-                if (wasSaved) {
-                    showProfessionalPopup("Success", "PDF is ready. On mobile, choose Save to Files or Downloads.");
-                }
+                // Use a mobile-safe file save flow instead of jsPDF's desktop-only save helper.
+                await savePdfFile(doc, fileName);
+                showProfessionalPopup("Success", "PDF saved successfully to your storage!");
             } catch (err) {
                 console.error("PDF generation error:", err);
                 showProfessionalPopup("Error", "Failed to generate PDF!");
             }
+        }
+
+        async function savePdfFile(doc, fileName) {
+            const pdfBlob = doc.output("blob");
+            const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const canShareFile = typeof navigator.canShare === "function" && navigator.canShare({ files: [pdfFile] });
+
+            // Android/iPhone apps often block the HTML download attribute. Their native
+            // share sheet can save the real PDF to Files/Downloads without crashing.
+            if (isMobile && typeof navigator.share === "function" && canShareFile) {
+                await navigator.share({
+                    title: fileName,
+                    text: "Bhajo Store bill PDF",
+                    files: [pdfFile]
+                });
+                return;
+            }
+
+            // Chrome, desktop browsers, and mobile browsers that support downloads.
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            const downloadLink = document.createElement("a");
+            downloadLink.href = pdfUrl;
+            downloadLink.download = fileName;
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+
+            // Do not revoke immediately: mobile browsers need time to start the download.
+            setTimeout(() => {
+                downloadLink.remove();
+                URL.revokeObjectURL(pdfUrl);
+            }, 60000);
         }
 
         let passwordPopupMode = "verify";
