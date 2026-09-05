@@ -263,8 +263,8 @@
         .manager-form-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; position: relative; flex-shrink: 0; }
         .manager-input-group { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
         .manager-input-group label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
-        .manager-input-group input[type="text"] { padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; font-size: 0.95rem; outline: none; height: 42px; width: 100%; }
-        .manager-input-group input[type="text"]:focus { border-color: #38bdf8; }
+        .manager-input-group input[type="text"], .manager-input-group input[type="password"] { padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; font-size: 0.95rem; outline: none; height: 42px; width: 100%; }
+        .manager-input-group input[type="text"]:focus, .manager-input-group input[type="password"]:focus { border-color: #38bdf8; }
 
         .suggestions-dropdown {
             position: absolute; top: 100%; left: 0; right: 0; background: #0f172a;
@@ -287,7 +287,6 @@
         .manager-delete-btn { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 6px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
         .manager-delete-btn:hover { background: #ef4444; color: #fff; }
 
-        /* ================= PROFESSIONAL POPUP MODAL STYLES (ADDED) ================= */
         .professional-popup-overlay {
             position: fixed;
             top: 0;
@@ -390,11 +389,41 @@
             background: #324468;
             color: #ffffff;
         }
-        /* ========================================================================= */
+
+        .password-popup-input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .password-popup-input:focus {
+            border-color: #38bdf8;
+        }
+        .change-pwd-link {
+            display: block;
+            margin-top: 12px;
+            color: #38bdf8;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: center;
+        }
+        .change-pwd-link:hover {
+            color: #00e676;
+        }
 
         .keyboard-wrapper {
             width: 100%; display: flex; flex-direction: column; align-items: flex-end;
-            position: absolute; bottom: 0; left: 0; z-index: 3000;
+            position: absolute; bottom: 0; left: 0; z-index: 300000;
             transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-sizing: border-box;
         }
         .keyboard-wrapper.minimized { transform: translateY(100%); }
@@ -526,6 +555,25 @@
                     <button class="footer-btn-undo" id="undo-btn">Undo</button>
                     <button class="footer-btn-right" id="refresh-btn">Refresh</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="passwordPopup" class="professional-popup-overlay">
+            <div class="professional-popup-box">
+                <div class="popup-icon-container">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 id="pwdPopupTitle">Enter Password</h3>
+                <p id="pwdPopupDesc">Please enter password to access Manage Items.</p>
+                
+                <input type="password" id="popupPasswordInput" class="password-popup-input" placeholder="Enter password..." readonly>
+                
+                <div class="popup-btn-group" id="pwdPopupBtnGroup">
+                    <button class="popup-btn popup-btn-secondary" onclick="closePasswordPopup()">Cancel</button>
+                    <button class="popup-btn popup-btn-primary" onclick="verifyPasswordAction()">Submit</button>
+                </div>
+
+                <button class="change-pwd-link" id="changePasswordLink" onclick="openChangePasswordMode()">Change Password</button>
             </div>
         </div>
 
@@ -675,7 +723,6 @@
 
         let cachedSheetItems = [];
 
-        // Professional Popup JavaScript Functionality
         function showProfessionalPopup(title, message) {
             document.getElementById('popupTitle').innerText = title;
             document.getElementById('popupMessage').innerText = message;
@@ -684,6 +731,103 @@
 
         function closeProfessionalPopup() {
             document.getElementById('professionalPopup').classList.remove('active');
+        }
+
+        let passwordPopupMode = "verify";
+        let tempOldPasswordForChange = "";
+
+        function openPasswordPopup() {
+            passwordPopupMode = "verify";
+            document.getElementById('pwdPopupTitle').innerText = "Enter Password";
+            document.getElementById('pwdPopupDesc').innerText = "Please enter password to access Manage Items.";
+            document.getElementById('popupPasswordInput').value = "";
+            document.getElementById('popupPasswordInput').placeholder = "Enter password...";
+            document.getElementById('changePasswordLink').style.display = "block";
+            document.getElementById('passwordPopup').classList.add('active');
+        }
+
+        function closePasswordPopup() {
+            document.getElementById('passwordPopup').classList.remove('active');
+            hideKeyboard();
+        }
+
+        function openChangePasswordMode() {
+            passwordPopupMode = "old_verify";
+            document.getElementById('pwdPopupTitle').innerText = "Change Password";
+            document.getElementById('pwdPopupDesc').innerText = "Enter your Old Password.";
+            document.getElementById('popupPasswordInput').value = "";
+            document.getElementById('popupPasswordInput').placeholder = "Old password...";
+            document.getElementById('changePasswordLink').style.display = "none";
+        }
+
+        function verifyPasswordAction() {
+            const val = document.getElementById('popupPasswordInput').value.trim();
+            if(!val) {
+                showProfessionalPopup("Warning", "Password cannot be empty!");
+                return;
+            }
+
+            if(passwordPopupMode === "verify") {
+                // Google Sheets se verify karo
+                fetch(BHAIJO_STORE_WEB_APP_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "VERIFY_PASSWORD", enteredPassword: val })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === "success") {
+                        closePasswordPopup();
+                        openItemManagerModal();
+                    } else {
+                        showProfessionalPopup("Error", "Incorrect Password!");
+                    }
+                })
+                .catch(err => {
+                    console.error("Password verification error:", err);
+                    showProfessionalPopup("Error", "Network error connecting to Sheet!");
+                });
+
+            } else if(passwordPopupMode === "old_verify") {
+                // Old password ko temporary store karke new password prompt par jao
+                tempOldPasswordForChange = val;
+                passwordPopupMode = "new_add";
+                document.getElementById('pwdPopupTitle').innerText = "New Password";
+                document.getElementById('pwdPopupDesc').innerText = "Enter your New Password.";
+                document.getElementById('popupPasswordInput').value = "";
+                document.getElementById('popupPasswordInput').placeholder = "New password...";
+
+            } else if(passwordPopupMode === "new_add") {
+                // Google Sheets B1 cell ko update karne ke liye request bhejo
+                fetch(BHAIJO_STORE_WEB_APP_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "CHANGE_PASSWORD", oldPassword: tempOldPasswordForChange, newPassword: val })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === "success") {
+                        closePasswordPopup();
+                        showProfessionalPopup("Success", "Password updated successfully in Google Sheet!");
+                    } else {
+                        showProfessionalPopup("Error", data.message || "Purana password galat hai!");
+                    }
+                })
+                .catch(err => {
+                    console.error("Change password error:", err);
+                    showProfessionalPopup("Error", "Network error connecting to Sheet!");
+                });
+            }
+        }
+
+        const popupPasswordInput = document.getElementById('popupPasswordInput');
+        if (popupPasswordInput) {
+            popupPasswordInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activeInput = popupPasswordInput;
+                activeInputType = 'password';
+                alphabetKeyboard.classList.remove('hidden');
+                calculatorKeyboard.classList.add('hidden');
+                showKeyboard();
+            });
         }
 
         function syncItemToGoogleSheet(itemName, actionType = "ADD") {
@@ -1114,6 +1258,8 @@
                 } else if (activeInput.id === 'itemSearch') {
                     activeInput.value = activeInput.value.slice(0, -1);
                     filterItems();
+                } else if (activeInput.id === 'popupPasswordInput') {
+                    activeInput.value = activeInput.value.slice(0, -1);
                 }
             };
 
@@ -1134,6 +1280,7 @@
 
         document.querySelectorAll('#alphabet-keyboard .key').forEach(key => {
             key.addEventListener('click', () => {
+                if (key.closest('#symbol-layout')) return;
                 if (!activeInput) return;
                 const keyText = key.innerText;
 
@@ -1150,6 +1297,8 @@
                     } else if (activeInput.id === 'itemSearch') {
                         activeInput.value += ' ';
                         filterItems();
+                    } else if (activeInput.id === 'popupPasswordInput') {
+                        activeInput.value += ' ';
                     }
                 } else if (key.id === 'enter-alphabet-btn' || keyText === '↵') {
                     if (activeInputType === 'name' && activeInput.classList.contains('item-name-input')) {
@@ -1170,6 +1319,8 @@
                         }
                     } else if (activeInput.id === 'itemSearch') {
                         addItem();
+                    } else if (activeInput.id === 'popupPasswordInput') {
+                        verifyPasswordAction();
                     }
                 } else if (!key.classList.contains('special') && key.id !== 'shift-btn') {
                     if (activeInputType === 'name' && activeInput.classList.contains('item-name-input')) {
@@ -1182,6 +1333,8 @@
                     } else if (activeInput.id === 'itemSearch') {
                         activeInput.value += keyText;
                         filterItems();
+                    } else if (activeInput.id === 'popupPasswordInput') {
+                        activeInput.value += keyText;
                     }
                     if (shiftState === 1) { shiftState = 0; updateKeyboardCase(); }
                 }
@@ -1196,6 +1349,11 @@
         const suggestionsBox = document.getElementById('suggestionsBox');
 
         saveItemsNameBtn.addEventListener('click', () => {
+            openPasswordPopup();
+            hideKeyboard();
+        });
+
+        function openItemManagerModal() {
             itemManagerModal.classList.remove('hidden');
             hideKeyboard();
             if (cachedSheetItems && cachedSheetItems.length > 0) {
@@ -1204,7 +1362,7 @@
                 managerTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#38bdf8; padding:20px;">Loading items from Google Sheet...</td></tr>`;
             }
             fetchItemsFromGoogleSheet();
-        });
+        }
 
         function fetchItemsFromGoogleSheet() {
             fetch(BHAIJO_STORE_WEB_APP_URL)
@@ -1407,6 +1565,8 @@
                     activeInput.value = initialRows[index][field];
                     checkFieldsForDisclaimer();
                     filterGridItems(index);
+                } else if (activeInput && activeInput.id === 'popupPasswordInput') {
+                    popupPasswordInput.value += key.innerText;
                 }
             });
         });
@@ -1426,6 +1586,8 @@
                         calculateTotal();
                         filterGridItems(index);
                     }
+                } else if (activeInput && activeInput.id === 'popupPasswordInput') {
+                    popupPasswordInput.value = popupPasswordInput.value.slice(0, -1);
                 }
             });
         });
@@ -1443,6 +1605,8 @@
                     activeInput.value = initialRows[index][field];
                     checkFieldsForDisclaimer();
                     filterGridItems(index);
+                } else if (activeInput && activeInput.id === 'popupPasswordInput') {
+                    popupPasswordInput.value += char;
                 }
             });
         });
