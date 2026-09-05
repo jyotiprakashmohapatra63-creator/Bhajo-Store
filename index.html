@@ -120,7 +120,6 @@
         .td-item input { width: 100%; background: transparent; border: none; color: #ffffff; font-size: 14px; outline: none; box-sizing: border-box; }
         .td-item input::placeholder { color: #9aa0a6; }
 
-        /* Inline Suggestions Dropdown for Main Grid Items Input */
         .suggestions-list-main {
             position: absolute; 
             top: 100%; 
@@ -288,6 +287,111 @@
         .manager-delete-btn { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 6px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
         .manager-delete-btn:hover { background: #ef4444; color: #fff; }
 
+        /* ================= PROFESSIONAL POPUP MODAL STYLES (ADDED) ================= */
+        .professional-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .professional-popup-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .professional-popup-box {
+            background: #161f30;
+            border: 1px solid #23304a;
+            width: 90%;
+            max-width: 380px;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            transform: translateY(20px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+            position: relative;
+            color: #f1f3f4;
+        }
+
+        .professional-popup-overlay.active .professional-popup-box {
+            transform: translateY(0) scale(1);
+        }
+
+        .popup-icon-container {
+            width: 55px;
+            height: 55px;
+            background: rgba(0, 230, 118, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px auto;
+            color: #00e676;
+            font-size: 24px;
+        }
+
+        .professional-popup-box h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .professional-popup-box p {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .popup-btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .popup-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .popup-btn-primary {
+            background: linear-gradient(270deg, #00e676, #00bcd4);
+            color: #ffffff;
+        }
+
+        .popup-btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .popup-btn-secondary {
+            background: #23304a;
+            color: #9ca3af;
+        }
+
+        .popup-btn-secondary:hover {
+            background: #324468;
+            color: #ffffff;
+        }
+        /* ========================================================================= */
+
         .keyboard-wrapper {
             width: 100%; display: flex; flex-direction: column; align-items: flex-end;
             position: absolute; bottom: 0; left: 0; z-index: 3000;
@@ -425,6 +529,19 @@
             </div>
         </div>
 
+        <div id="professionalPopup" class="professional-popup-overlay">
+            <div class="professional-popup-box">
+                <div class="popup-icon-container">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 id="popupTitle">Success</h3>
+                <p id="popupMessage">Data saved successfully!</p>
+                <div class="popup-btn-group">
+                    <button class="popup-btn popup-btn-primary" onclick="closeProfessionalPopup()">OK</button>
+                </div>
+            </div>
+        </div>
+
         <div class="item-manager-modal hidden" id="item-manager-modal">
             <div class="item-manager-card">
                 <div class="manager-header-row">
@@ -558,6 +675,17 @@
 
         let cachedSheetItems = [];
 
+        // Professional Popup JavaScript Functionality
+        function showProfessionalPopup(title, message) {
+            document.getElementById('popupTitle').innerText = title;
+            document.getElementById('popupMessage').innerText = message;
+            document.getElementById('professionalPopup').classList.add('active');
+        }
+
+        function closeProfessionalPopup() {
+            document.getElementById('professionalPopup').classList.remove('active');
+        }
+
         function syncItemToGoogleSheet(itemName, actionType = "ADD") {
             if (!itemName || itemName.trim() === "") return;
             fetch(BHAIJO_STORE_WEB_APP_URL, {
@@ -644,7 +772,6 @@
             }
         }
 
-        // Inline filter items function for grid items
         function filterGridItems(index) {
             const inputField = document.querySelector(`.item-name-input[data-index="${index}"]`);
             const suggestionBox = document.getElementById(`suggestions-list-${index}`);
@@ -795,7 +922,7 @@
                 renderRows();
                 backupRows = [];
             } else {
-                alert('Undo karne ke liye koi data nahi hai!');
+                showProfessionalPopup('Notice', 'Undo karne ke liye koi data nahi hai!');
             }
         });
 
@@ -810,11 +937,11 @@
 
         saveStoreBtn.addEventListener('click', () => {
             if (initialRows.length === 0 || (initialRows.length === 1 && (!initialRows[0].name.trim() || !initialRows[0].amount.trim() || initialRows[0].amount === '0000'))) {
-                alert('Please add at least one valid item and amount!');
+                showProfessionalPopup('Warning', 'Please add at least one valid item and amount!');
                 renderRows();
                 return;
             }
-            alert('Data saved successfully!');
+            showProfessionalPopup('Success', 'Data saved successfully!');
             hideKeyboard();
         });
 
@@ -1143,7 +1270,7 @@
         function addItem() {
             const itemName = itemSearchInput.value.trim();
             if (!itemName) {
-                alert('Please enter an item name!');
+                showProfessionalPopup('Warning', 'Please enter an item name!');
                 return;
             }
 
