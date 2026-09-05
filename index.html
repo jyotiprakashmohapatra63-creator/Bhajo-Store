@@ -788,21 +788,26 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
+                // Page Background (#073B4C)
                 doc.setFillColor(7, 59, 76);
                 doc.rect(0, 0, 210, 297, "F");
 
+                // Header Background
                 doc.setFillColor(11, 15, 25);
                 doc.rect(0, 0, 210, 40, "F");
 
+                // Title
                 doc.setTextColor(56, 189, 248);
                 doc.setFontSize(22);
                 doc.setFont("helvetica", "bold");
                 doc.text("BHAJO STORE", 105, 22, { align: "center" });
 
+                // Subtitle / Date
                 doc.setTextColor(156, 163, 175);
                 doc.setFontSize(10);
                 doc.text("Date: " + new Date().toLocaleString(), 105, 32, { align: "center" });
 
+                // Table Header
                 let startY = 55;
                 doc.setFillColor(31, 41, 55);
                 doc.rect(14, startY, 182, 10, "F");
@@ -815,13 +820,14 @@
                 doc.text("Calculation", 110, startY + 7);
                 doc.text("Amount", 185, startY + 7, { align: "right" });
 
+                // Table Rows
                 startY += 10;
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(10);
                 doc.setTextColor(241, 243, 244);
 
                 let total = 0;
-                let validIdx = 0; 
+                let validIdx = 0; // Fix: use a separate counter for valid rows so row number 1 is not skipped or filtered out incorrectly
                 initialRows.forEach((row, idx) => {
                     if (!row.name.trim() && !row.amount.trim()) return;
                     let amt = parseFloat(row.amount) || 0;
@@ -835,6 +841,7 @@
                         startY = 20;
                     }
 
+                    // Zebra striping
                     if (validIdx % 2 === 0) {
                         doc.setFillColor(18, 24, 36);
                         doc.rect(14, startY, 182, 8, "F");
@@ -848,6 +855,7 @@
                     startY += 8;
                 });
 
+                // Grand Total
                 startY += 6;
                 doc.setFillColor(31, 41, 55);
                 doc.rect(14, startY, 182, 12, "F");
@@ -857,41 +865,9 @@
                 doc.text("Grand Total:", 20, startY + 8);
                 doc.text(total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 185, startY + 8, { align: "right" });
 
-                try {
-                    const pdfDataUri = doc.output('datauristring');
-                    const isMobileApp = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                    
-                    if (isMobileApp) {
-                        const newWindow = window.open();
-                        if (newWindow) {
-                            newWindow.document.write(`
-                                <html>
-                                <head><title>${fileName}</title></head>
-                                <body style="margin:0;background:#0b0f19;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;">
-                                    <iframe src="${pdfDataUri}" style="width:100%;height:85vh;border:none;"></iframe>
-                                    <div style="padding:15px;">
-                                        <a href="${pdfDataUri}" download="${fileName}" style="background:#00e676;color:#0b0f19;padding:12px 24px;text-decoration:none;font-weight:bold;border-radius:25px;font-family:sans-serif;">Download / Save PDF File</a>
-                                    </div>
-                                </body>
-                                </html>
-                            `);
-                            newWindow.document.close();
-                        } else {
-                            const link = document.createElement('a');
-                            link.href = pdfDataUri;
-                            link.download = fileName;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                        }
-                    } else {
-                        doc.save(fileName);
-                    }
-                } catch (e) {
-                    doc.save(fileName);
-                }
-
-                showProfessionalPopup("Success", "PDF generated successfully!");
+                // Save PDF
+                doc.save(fileName);
+                showProfessionalPopup("Success", "PDF saved successfully to your storage!");
             } catch (err) {
                 console.error("PDF generation error:", err);
                 showProfessionalPopup("Error", "Failed to generate PDF!");
@@ -1244,6 +1220,7 @@
             grandTotalDisplay.innerText = sum.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
         }
 
+        // SAVE button click now triggers PDF name input popup using virtual keyboard
         saveStoreBtn.addEventListener('click', () => {
             openPdfNamePopup();
             hideKeyboard();
@@ -1554,32 +1531,134 @@
                     newRow.innerHTML = `
                         <td class="manager-col-no">${index + 1}</td>
                         <td>${itemName}</td>
-                        <td><button class="manager-delete-btn" onclick="deleteItemFromSheet('${itemName.replace(/'/g, "\\'")}')">Delete</button></td>
+                        <td><button class="manager-delete-btn" onclick="deleteManagerRow(this)"><i class="fa-regular fa-trash-can"></i></button></td>
                     `;
                     managerTableBody.appendChild(newRow);
                 });
             } else {
-                managerTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">No items found.</td></tr>`;
+                managerTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">No items found in Sheet.</td></tr>`;
             }
         }
 
+        closeManagerBtn.addEventListener('click', () => {
+            itemManagerModal.classList.add('hidden');
+            closeSuggestions();
+            hideKeyboard();
+        });
+
+        itemSearchInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+            activeInput = itemSearchInput;
+            activeInputType = 'manager';
+            alphabetKeyboard.classList.remove('hidden');
+            calculatorKeyboard.classList.add('hidden');
+            showKeyboard();
+        });
+
+        function scrollToItem(itemName) {
+            const rows = document.querySelectorAll('#managerTableBody tr');
+            for (let row of rows) {
+                if(row.cells.length < 2) continue;
+                const itemText = row.cells[1].textContent.trim();
+                if (itemText.toLowerCase() === itemName.toLowerCase()) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('highlight-row');
+                    setTimeout(() => row.classList.remove('highlight-row'), 2000);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function addItem() {
+            const itemName = itemSearchInput.value.trim();
+            if (!itemName) {
+                showProfessionalPopup('Warning', 'Please enter an item name!');
+                return;
+            }
+
+            const rows = document.querySelectorAll('#managerTableBody tr');
+            let exists = false;
+            for (let row of rows) {
+                if(row.cells.length < 2) continue;
+                if (row.cells[1].textContent.trim().toLowerCase() === itemName.toLowerCase()) {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (exists) {
+                scrollToItem(itemName);
+                itemSearchInput.value = '';
+                closeSuggestions();
+                return;
+            }
+
+            const rowCount = managerTableBody.querySelectorAll('tr').length + 1;
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td class="manager-col-no">${rowCount}</td>
+                <td>${itemName}</td>
+                <td><button class="manager-delete-btn" onclick="deleteManagerRow(this)"><i class="fa-regular fa-trash-can"></i></button></td>
+            `;
+
+            managerTableBody.appendChild(newRow);
+            syncItemToGoogleSheet(itemName, "ADD");
+            cachedSheetItems.push(itemName);
+
+            itemSearchInput.value = '';
+            closeSuggestions();
+            newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        managerAddBtn.addEventListener('click', addItem);
+
+        window.deleteManagerRow = function(button) {
+            const row = button.closest('tr');
+            const itemName = row.cells[1].textContent.trim();
+            row.remove();
+            reindexManagerTable();
+            syncItemToGoogleSheet(itemName, "DELETE");
+            cachedSheetItems = cachedSheetItems.filter(item => item.toLowerCase() !== itemName.toLowerCase());
+        }
+
+        function reindexManagerTable() {
+            const rows = document.querySelectorAll('#managerTableBody tr');
+            rows.forEach((row, index) => {
+                if(row.cells.length > 0) row.cells[0].textContent = index + 1;
+            });
+        }
+
         function filterItems() {
-            const query = itemSearchInput.value.toLowerCase().trim();
-            if (!query) {
+            const inputVal = itemSearchInput.value.toLowerCase().trim();
+            suggestionsBox.innerHTML = '';
+
+            if (!inputVal) {
                 suggestionsBox.style.display = 'none';
                 return;
             }
-            const filtered = cachedSheetItems.filter(item => item.toLowerCase().includes(query));
-            suggestionsBox.innerHTML = '';
-            if (filtered.length > 0) {
+
+            const rows = document.querySelectorAll('#managerTableBody tr');
+            let matchedItems = [];
+
+            rows.forEach(row => {
+                if(row.cells.length < 2) return;
+                const itemText = row.cells[1].textContent.trim();
+                if (itemText.toLowerCase().includes(inputVal)) {
+                    matchedItems.push(itemText);
+                }
+            });
+
+            if (matchedItems.length > 0) {
                 suggestionsBox.style.display = 'block';
-                filtered.forEach(item => {
+                matchedItems.forEach(item => {
                     const div = document.createElement('div');
-                    div.className = 'suggestion-item';
+                    div.classList.add('suggestion-item');
                     div.textContent = item;
                     div.onclick = () => {
                         itemSearchInput.value = item;
                         suggestionsBox.style.display = 'none';
+                        scrollToItem(item);
                     };
                     suggestionsBox.appendChild(div);
                 });
@@ -1588,55 +1667,97 @@
             }
         }
 
-        itemSearchInput.addEventListener('click', (e) => {
-            e.stopPropagation();
-            activeInput = itemSearchInput;
-            activeInputType = 'search';
-            alphabetKeyboard.classList.remove('hidden');
-            calculatorKeyboard.classList.add('hidden');
-            showKeyboard();
-        });
-
-        itemSearchInput.addEventListener('input', filterItems);
-
-        function addItem() {
-            const val = itemSearchInput.value.trim();
-            if (!val) {
-                showProfessionalPopup("Warning", "Item name cannot be empty!");
-                return;
-            }
-            if (cachedSheetItems.includes(val)) {
-                showProfessionalPopup("Notice", "Item already exists!");
-                return;
-            }
-            cachedSheetItems.push(val);
-            populateManagerTable(cachedSheetItems);
-            syncItemToGoogleSheet(val, "ADD");
-            itemSearchInput.value = "";
+        function closeSuggestions() {
             suggestionsBox.style.display = 'none';
-            showProfessionalPopup("Success", "Item added successfully!");
         }
 
-        managerAddBtn.addEventListener('click', addItem);
+        const toggleSymBtn = document.getElementById('toggle-sym-btn');
+        const alphabetLayout = document.getElementById('alphabet-layout');
+        const symbolLayout = document.getElementById('symbol-layout');
+        const symbolsView = document.getElementById('symbols-view');
+        const numberPadView = document.getElementById('number-pad-view');
+        const numPadToggle = document.getElementById('num-pad-toggle');
+        const backToSymbols = document.getElementById('back-to-symbols');
 
-        window.deleteItemFromSheet = function(itemName) {
-            cachedSheetItems = cachedSheetItems.filter(item => item !== itemName);
-            populateManagerTable(cachedSheetItems);
-            syncItemToGoogleSheet(itemName, "DELETE");
-            showProfessionalPopup("Success", "Item deleted successfully!");
-        }
-
-        closeManagerBtn.addEventListener('click', () => {
-            itemManagerModal.classList.add('hidden');
-            hideKeyboard();
+        toggleSymBtn.addEventListener('click', () => {
+            alphabetLayout.classList.toggle('hidden');
+            symbolLayout.classList.toggle('hidden');
+            symbolsView.classList.remove('hidden');
+            numberPadView.classList.add('hidden');
+            numPadToggle.innerText = '123';
+            toggleSymBtn.innerText = alphabetLayout.classList.contains('hidden') ? 'ABC' : '?123';
         });
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.item-manager-card') && !e.target.closest('#item-manager-modal') && !itemManagerModal.classList.contains('hidden')) {
-                // Keep modal open unless close button clicked
-            }
-            document.querySelectorAll('.suggestions-list-main').forEach(box => {
-                if (!e.target.closest('.td-item')) box.style.display = 'none';
+        numPadToggle.addEventListener('click', () => {
+            symbolsView.classList.add('hidden');
+            numberPadView.classList.remove('hidden');
+        });
+
+        backToSymbols.addEventListener('click', () => {
+            numberPadView.classList.add('hidden');
+            symbolsView.classList.remove('hidden');
+        });
+
+        document.querySelectorAll('#symbol-layout .key:not(.special)').forEach(key => {
+            key.addEventListener('click', () => {
+                if (activeInput && activeInput.id === 'itemSearch') {
+                    itemSearchInput.value += key.innerText;
+                    filterItems();
+                } else if (activeInput && activeInput.classList.contains('item-name-input')) {
+                    const index = parseInt(activeInput.getAttribute('data-index'));
+                    const field = activeInput.getAttribute('data-field');
+                    initialRows[index][field] += key.innerText;
+                    activeInput.value = initialRows[index][field];
+                    checkFieldsForDisclaimer();
+                    filterGridItems(index);
+                } else if (activeInput && activeInput.id === 'popupPasswordInput') {
+                    popupPasswordInput.value += key.innerText;
+                } else if (activeInput && activeInput.id === 'pdfNameInput') {
+                    pdfNameInput.value += key.innerText;
+                }
+            });
+        });
+
+        document.querySelectorAll('.backspace-btn-sym').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (activeInput && activeInput.id === 'itemSearch') {
+                    itemSearchInput.value = itemSearchInput.value.slice(0, -1);
+                    filterItems();
+                } else if (activeInput && activeInput.classList.contains('item-name-input')) {
+                    const index = parseInt(activeInput.getAttribute('data-index'));
+                    const field = activeInput.getAttribute('data-field');
+                    if (initialRows[index][field].length > 0) {
+                        initialRows[index][field] = initialRows[index][field].slice(0, -1);
+                        activeInput.value = initialRows[index][field];
+                        checkFieldsForDisclaimer();
+                        calculateTotal();
+                        filterGridItems(index);
+                    }
+                } else if (activeInput && activeInput.id === 'popupPasswordInput') {
+                    popupPasswordInput.value = popupPasswordInput.value.slice(0, -1);
+                } else if (activeInput && activeInput.id === 'pdfNameInput') {
+                    pdfNameInput.value = pdfNameInput.value.slice(0, -1);
+                }
+            });
+        });
+
+        document.querySelectorAll('.punct, .spacebar').forEach(key => {
+            key.addEventListener('click', () => {
+                const char = key.getAttribute('data-char') || key.innerText;
+                if (activeInput && activeInput.id === 'itemSearch') {
+                    itemSearchInput.value += char;
+                } else if (activeInput && activeInput.classList.contains('item-name-input')) {
+                    const index = parseInt(activeInput.getAttribute('data-index'));
+                    const field = activeInput.getAttribute('data-field');
+                    initialRows[index][field] += char;
+                    activeInput.value = initialRows[index][field];
+                    checkFieldsForDisclaimer();
+                    filterGridItems(index);
+                } else if (activeInput && activeInput.id === 'popupPasswordInput') {
+                    popupPasswordInput.value += char;
+                } else if (activeInput && activeInput.id === 'pdfNameInput') {
+                    pdfNameInput.value += char;
+                }
             });
         });
 
