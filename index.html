@@ -788,87 +788,137 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
-                // Page Background (#073B4C)
-                doc.setFillColor(7, 59, 76);
+                // Professional Modern Color Palette
+                // Background: Clean Soft Light Gray/Off-white (#f8fafc) with rich professional dark header & vibrant accents
+                doc.setFillColor(248, 250, 252);
                 doc.rect(0, 0, 210, 297, "F");
 
-                // Header Background
-                doc.setFillColor(11, 15, 25);
-                doc.rect(0, 0, 210, 40, "F");
+                // Top Decorative Accent Bar (Gradient-like effect with primary brand colors)
+                doc.setFillColor(11, 15, 25); // Dark Navy Header Box
+                doc.rect(0, 0, 210, 48, "F");
 
-                // Title
+                doc.setFillColor(56, 189, 248); // Cyan Accent line
+                doc.rect(0, 48, 210, 3, "F");
+
+                // Store Title (Bold & Vibrant)
                 doc.setTextColor(56, 189, 248);
-                doc.setFontSize(22);
+                doc.setFontSize(24);
                 doc.setFont("helvetica", "bold");
-                doc.text("BHAJO STORE", 105, 22, { align: "center" });
+                doc.text("BHAJO STORE", 15, 24);
 
-                // Subtitle / Date
-                doc.setTextColor(156, 163, 175);
-                doc.setFontSize(10);
-                doc.text("Date: " + new Date().toLocaleString(), 105, 32, { align: "center" });
-
-                // Table Header
-                let startY = 55;
+                // Invoice Badge on Top Right
                 doc.setFillColor(31, 41, 55);
-                doc.rect(14, startY, 182, 10, "F");
+                doc.roundedRect(145, 12, 50, 24, 3, 3, "F");
+                doc.setTextColor(0, 230, 118);
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.text("INVOICE / BILL", 170, 21, { align: "center" });
+                doc.setTextColor(203, 213, 225);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "normal");
+                doc.text("Original Receipt", 170, 29, { align: "center" });
+
+                // Subtitle / Date / Store Info
+                doc.setTextColor(156, 163, 175);
+                doc.setFontSize(9);
+                doc.text("Date & Time: " + new Date().toLocaleString(), 15, 36);
+
+                // Table Header Container
+                let startY = 62;
+                doc.setFillColor(30, 41, 59); // Slate header background
+                doc.roundedRect(12, startY, 186, 12, 2, 2, "F");
 
                 doc.setTextColor(56, 189, 248);
-                doc.setFontSize(11);
+                doc.setFontSize(10);
                 doc.setFont("helvetica", "bold");
-                doc.text("No.", 20, startY + 7);
-                doc.text("Items Name", 40, startY + 7);
-                doc.text("Calculation", 110, startY + 7);
-                doc.text("Amount", 185, startY + 7, { align: "right" });
+                doc.text("No.", 20, startY + 8);
+                doc.text("ITEMS NAME", 40, startY + 8);
+                doc.text("CALCULATION", 115, startY + 8);
+                doc.text("AMOUNT (₹)", 188, startY + 8, { align: "right" });
 
                 // Table Rows
-                startY += 10;
+                startY += 16;
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(10);
-                doc.setTextColor(241, 243, 244);
+                doc.setTextColor(30, 41, 59);
 
                 let total = 0;
-                let validIdx = 0; // Fix: use a separate counter for valid rows so row number 1 is not skipped or filtered out incorrectly
+                let validIdx = 0;
                 initialRows.forEach((row, idx) => {
                     if (!row.name.trim() && !row.amount.trim()) return;
                     let amt = parseFloat(row.amount) || 0;
                     total += amt;
                     validIdx++;
 
-                    if (startY > 270) {
+                    if (startY > 265) {
                         doc.addPage();
-                        doc.setFillColor(7, 59, 76);
+                        doc.setFillColor(248, 250, 252);
                         doc.rect(0, 0, 210, 297, "F");
                         startY = 20;
                     }
 
-                    // Zebra striping
+                    // Alternating Row Background (Zebra Striping with subtle colors)
                     if (validIdx % 2 === 0) {
-                        doc.setFillColor(18, 24, 36);
-                        doc.rect(14, startY, 182, 8, "F");
+                        doc.setFillColor(241, 245, 249);
+                        doc.rect(12, startY - 4, 186, 9, "F");
+                    } else {
+                        doc.setFillColor(255, 255, 255);
+                        doc.rect(12, startY - 4, 186, 9, "F");
                     }
 
-                    doc.text(validIdx.toString(), 20, startY + 6);
-                    doc.text(row.name || "", 40, startY + 6);
-                    doc.text(row.calc || "", 110, startY + 6);
-                    doc.text(amt.toFixed(2), 185, startY + 6, { align: "right" });
+                    // Subtle row bottom border
+                    doc.setDrawColor(226, 232, 240);
+                    doc.setLineWidth(0.2);
+                    doc.line(12, startY + 5, 198, startY + 5);
 
-                    startY += 8;
+                    doc.setTextColor(74, 222, 128);
+                    doc.setFont("helvetica", "bold");
+                    doc.text(validIdx.toString(), 20, startY + 2);
+
+                    doc.setTextColor(15, 23, 42);
+                    doc.setFont("helvetica", "normal");
+                    doc.text(row.name || "", 40, startY + 2);
+
+                    doc.setTextColor(100, 116, 139);
+                    doc.text(row.calc || "", 115, startY + 2);
+
+                    doc.setTextColor(13, 148, 136);
+                    doc.setFont("helvetica", "bold");
+                    doc.text(amt.toFixed(2), 188, startY + 2, { align: "right" });
+
+                    startY += 10;
                 });
 
-                // Grand Total
+                // Grand Total Box (Professional Highlighted Footer Block)
                 startY += 6;
-                doc.setFillColor(31, 41, 55);
-                doc.rect(14, startY, 182, 12, "F");
-                doc.setTextColor(0, 230, 118);
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(12);
-                doc.text("Grand Total:", 20, startY + 8);
-                doc.text(total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 185, startY + 8, { align: "right" });
+                if (startY > 265) {
+                    doc.addPage();
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(0, 0, 210, 297, "F");
+                    startY = 20;
+                }
 
-                // In the APK, AndroidPdf writes the file directly to Downloads/Bhajo Store.
-                // The Blob fallback keeps the same HTML working in ordinary browsers.
+                doc.setFillColor(15, 23, 42); // Dark Navy Total Card
+                doc.roundedRect(12, startY, 186, 16, 3, 3, "F");
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(11);
+                doc.text("GRAND TOTAL:", 22, startY + 10.5);
+
+                doc.setTextColor(0, 230, 118);
+                doc.setFontSize(14);
+                doc.text("₹ " + total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 188, startY + 11, { align: "right" });
+
+                // Footer Note / Branding
+                startY += 28;
+                doc.setTextColor(148, 163, 184);
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "italic");
+                doc.text("Thank you for your business! Generated via Bhajo Store App.", 105, startY, { align: "center" });
+
                 savePdfFile(doc, fileName);
-                showProfessionalPopup("Success", "PDF saved successfully to your storage!");
+                showProfessionalPopup("Success", "Professional PDF saved successfully to your storage!");
             } catch (err) {
                 console.error("PDF generation error:", err);
                 showProfessionalPopup("Error", "Failed to generate PDF!");
